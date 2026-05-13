@@ -1,0 +1,42 @@
+name: Build custom KernelSU ko
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/ylarod/ddk-min:android12-5.10-20260313
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build kernelsu.ko
+        working-directory: kernel
+        run: |
+          CONFIG_KSU=m CC=clang make \
+            KSU_EXPECTED_SIZE2=0x2e8 \
+            KSU_EXPECTED_HASH2=c4d716819c84036851a75beb51c92824015e1ecf7d7ece07c8d6a7466d3b8504
+
+      - name: Show output
+        working-directory: kernel
+        run: |
+          ls -lh kernelsu.ko || true
+          file kernelsu.ko || true
+
+      - name: Strip module
+        working-directory: kernel
+        run: |
+          if command -v llvm-strip >/dev/null 2>&1; then
+            llvm-strip --strip-debug kernelsu.ko || true
+          fi
+          ls -lh kernelsu.ko || true
+
+      - name: Upload kernelsu.ko
+        uses: actions/upload-artifact@v4
+        with:
+          name: android12-5.10-kernelsu-ko-latest-custom
+          path: kernel/kernelsu.ko
