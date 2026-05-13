@@ -1,0 +1,8 @@
+# Copy to ksu-manager-signing.local.mk (gitignored) and fill in your self-signed Manager APK values.
+# Generate lines with (run on PC/Mac/Linux with Rust):
+#   cd ../userspace/ksud && cargo run -- get-sign --kbuild /path/to/your-signed-KernelSU-manager.apk
+#
+# Or invoke DDK make with both vars on the command line instead of this file.
+#
+# KSU_EXPECTED_SIZE2 := 0x033b
+# KSU_EXPECTED_HASH2 := abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789

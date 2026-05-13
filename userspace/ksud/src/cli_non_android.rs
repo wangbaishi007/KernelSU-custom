@@ -1,0 +1,72 @@
+use anyhow::Result;
+use clap::Parser;
+
+use crate::boot_patch::{BootPatchArgs, BootRestoreArgs};
+use crate::{apk_sign, defs};
+
+/// KernelSU cli for non-android
+#[derive(Parser, Debug)]
+#[command(author, version = defs::VERSION_NAME, about, long_about = None)]
+struct Args {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Commands {
+    /// Patch boot or init_boot images to apply KernelSU
+    BootPatch(BootPatchArgs),
+
+    /// Restore boot or init_boot images patched by KernelSU
+    BootRestore(BootRestoreArgs),
+
+    /// Get apk signer certificate size + SHA-256 (v2 scheme) for kernel Kbuild / EXPECTED_HASH2
+    GetSign {
+        /// apk path
+        apk: String,
+        /// Emit Makefile assignments: KSU_EXPECTED_SIZE2 / KSU_EXPECTED_HASH2
+        #[arg(long)]
+        kbuild: bool,
+    },
+
+    /// show supported kmi versions
+    SupportedKmis,
+}
+
+pub fn run() -> Result<()> {
+    env_logger::init();
+
+    let cli = Args::parse();
+
+    log::info!("command: {:?}", cli.command);
+
+    let result = match cli.command {
+        Commands::GetSign { apk, kbuild } => {
+            let sign = apk_sign::get_apk_signature(&apk)?;
+            if kbuild {
+                println!("KSU_EXPECTED_SIZE2 := {:#x}", sign.0);
+                println!("KSU_EXPECTED_HASH2 := {}", sign.1);
+            } else {
+                println!("size: {:#x}, hash: {}", sign.0, sign.1);
+            }
+            Ok(())
+        }
+
+        Commands::BootPatch(boot_patch) => crate::boot_patch::patch(boot_patch),
+
+        Commands::BootRestore(boot_restore) => crate::boot_patch::restore(boot_restore),
+
+        Commands::SupportedKmis => {
+            let kmi = crate::assets::list_supported_kmi();
+            for kmi in &kmi {
+                println!("{kmi}");
+            }
+            Ok(())
+        }
+    };
+
+    if let Err(e) = &result {
+        log::error!("Error: {e:?}");
+    }
+    result
+}
